@@ -4,9 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\alternatif;
 use App\Models\Bobot;
+use App\Models\Bias;
+use App\Models\Predict;
 use App\Models\TrainingData;
+use App\Models\TargetData;
 use App\Models\TestingData;
+use App\Models\PrediksiData;
+use App\Models\AktualData;
 use Illuminate\Http\Request;
+use Phpml\Math\Matrix;
 
 class ProduksiController extends Controller
 {
@@ -15,9 +21,33 @@ class ProduksiController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $matriksA = $this->parameter($request)->getData()['aktualData'];
+        $matriksB = $this->denormalisasi($request)->getData()['denormalisasi'];
+        $data = alternatif::orderby('id', 'asc')->get();
+        $total_c1 = 0;
+        $total_c2 = 0;
+        $total_c3 = 0;
+        $total_c4 = 0;
+        $total_c5 = 0;
+
+        foreach ($data as $item) {
+            $total_c1 += $item->C1;
+            $total_c2 += $item->C2;
+            $total_c3 += $item->C3;
+            $total_c4 += $item->C4;
+            $total_c5 += $item->C5;
+        }
+        return view('home', compact(
+            'total_c1',
+            'total_c2',
+            'total_c3',
+            'total_c4',
+            'total_c5',
+            'matriksA',
+            'matriksB'
+        ));
     }
 
     /**
@@ -27,7 +57,7 @@ class ProduksiController extends Controller
      */
     public function create()
     {
-        //
+        return view('admin.prediksi.create');
     }
 
     /**
@@ -38,7 +68,26 @@ class ProduksiController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $this->validate($request, [
+            'C1' => 'required',
+            'C2' => 'required',
+            'C3' => 'required',
+            'C4' => 'required',
+            'C5' => 'required',
+
+
+        ]);
+
+        $mapel = alternatif::create([
+
+            'C1' => $request->C1,
+            'C2' => $request->C2,
+            'C3' => $request->C3,
+            'C4' => $request->C4,
+            'C5' => $request->C5,
+        ]);
+
+        return redirect()->route('prediksi.index')->with('success', 'Data berhasil disimpan');
     }
 
     /**
@@ -60,7 +109,8 @@ class ProduksiController extends Controller
      */
     public function edit($id)
     {
-        //
+        $mapel = alternatif::findorfail($id);
+        return view('admin.prediksi.edit', compact('mapel'));
     }
 
     /**
@@ -72,7 +122,24 @@ class ProduksiController extends Controller
      */
     public function update(Request $request, $id)
     {
-        //
+        $this->validate($request, [
+            'C1' => 'required',
+            'C2' => 'required',
+            'C3' => 'required',
+            'C4' => 'required',
+            'C5' => 'required',
+        ]);
+        $mapel = [
+            'C1' => $request->C1,
+            'C2' => $request->C2,
+            'C3' => $request->C3,
+            'C4' => $request->C4,
+            'C5' => $request->C5,
+        ];
+
+        alternatif::whereId($id)->update($mapel);
+
+        return redirect()->route('prediksi.index')->with('success', 'Data Berhasil di Update');
     }
 
     /**
@@ -83,6 +150,156 @@ class ProduksiController extends Controller
      */
     public function destroy($id)
     {
+        //
+    }
+
+    public function parameter(Request $request)
+    {
+        // Lakukan normalisasi pada data
+        $normalisasiData = $this->normalisasi($request)->getData()['normalisasiData'];
+        $normalisasiTarget = $this->normalisasi($request)->getData()['targetData'];
+        $aktualData = $this->normalisasi($request)->getData()['aktualData'];
+        // Melakukan pembagian data training dan testing
+        $totalData = count($normalisasiData);
+        $trainingPercentage = $request->input('training_percentage');
+        $trainingCount = (int) ($totalData * $trainingPercentage);
+        $testingCount = $totalData - $trainingCount;
+        // Periksa apakah ada input
+        $input = $request->input('input');
+
+        // Jika ada input, lakukan pembuatan data baru dan simpan ke dalam tabel bobot
+        if ($input !== null && $input !== false) {
+            $columnCount = count(alternatif::first()->getFillable()) - 1;
+
+            // Menghitung bobot input
+            $bobotMatrix = [];
+            $bobotBias = [];
+            for ($i = 0; $i < $input; $i++) {
+                $row = [];
+                for ($j = 0; $j < $columnCount; $j++) {
+                    $row[] = mt_rand(-100, 100) / 100;
+                }
+                $bobotMatrix[] = $row;
+                // Inisialisasi bobot bias untuk setiap input
+                $bobotBias[] = mt_rand(-100, 0) / 100;
+            }
+            // Simpan matriks bobot ke dalam database
+            $bobot = new Bobot();
+            $bobot->matrix = $bobotMatrix;
+            $bobot->save();
+
+            // Simpan bobot bias ke dalam database
+            $bias = new Bias();
+            $bias->data = $bobotBias;
+            $bias->save();
+            // Menghitung transpose bobot input
+            $transposedMatrix = $this->transposeMatrix($bobotMatrix);
+        } else {
+            // Jika tidak ada input, ambil data terakhir dari tabel bobot
+            $latestBobot = Bobot::latest()->first();
+            $latestBias = Bias::latest()->first();
+
+            if ($latestBobot && $latestBias) {
+                // Ambil matriks bobot dari data terakhir dalam tabel bobot
+                $bobotMatrix = $latestBobot->matrix;
+                $bobotBias = $latestBias->data;
+                // Menghitung transpose bobot input
+                $transposedMatrix = $this->transposeMatrix($bobotMatrix);
+            } else {
+                // Jika tidak ada data bobot tersimpan, beri nilai default pada kedua matriks
+                $bobotMatrix = [];
+                $transposedMatrix = [];
+                $bobotBias = [];
+            }
+        }
+
+        if ($trainingPercentage !== null && $trainingPercentage !== false) {
+            // Jika ada input, lakukan pembagian data training dan testing
+            $trainingCount = (int) ($totalData * $trainingPercentage);
+            $testingCount = $totalData - $trainingCount;
+
+            // Pisahkan data menjadi data training dan data testing
+            $trainingData = array_slice($normalisasiData, 0, $trainingCount);
+            $testingData = array_slice($normalisasiData, $trainingCount);
+            $targetData = array_slice($normalisasiTarget, 0, $trainingCount);
+            $aktualData = array_slice($aktualData, $trainingCount);
+
+            // Simpan data training dan data testing ke dalam database
+            $this->storeTrainingData($trainingData);
+            $this->storeTestingData($testingData);
+            $this->storeTargetData($targetData);
+            $this->storeAktualData($aktualData);
+        } else {
+            // Jika tidak ada input, ambil data terakhir dari tabel training dan testing
+            $latestTraining = TrainingData::latest()->first();
+            $latestTesting = TestingData::latest()->first();
+            $latestTarget = TargetData::latest()->first();
+            $latestAktual = AktualData::latest()->first();
+
+            if ($latestTraining && $latestTesting && $latestTarget && $latestAktual) {
+                // Ambil data training dan testing dari database
+                $trainingData = json_decode($latestTraining->data, true);
+                $testingData = json_decode($latestTesting->data, true);
+                $targetData = json_decode($latestTarget->data, true);
+                $aktualData = json_decode($latestAktual->data, true);
+            } else {
+                // Jika tidak ada data training dan testing tersimpan, inisialisasi dengan array kosong
+                $trainingData = [];
+                $testingData = [];
+                $targetData = [];
+                $aktualData = [];
+            }
+        }
+        return view('admin.elm.prediksi', compact(
+            'bobotMatrix',
+            'bobotBias',
+            'transposedMatrix',
+            'trainingData',
+            'testingData',
+            'targetData',
+            'aktualData',
+            'trainingCount',
+            'testingCount',
+        ));
+    }
+
+    public function training(Request $request)
+    {
+        $bobotMatrix = $this->parameter($request)->getData()['bobotMatrix'];
+        $bobotBias = $this->parameter($request)->getData()['bobotBias'];
+        $transposedMatrix = $this->parameter($request)->getData()['transposedMatrix'];
+        $matriksHasil = $this->perkalian_matriks($request)->getData()['matriksHasil'];
+        $datafungsiAktivasi = $this->fungsiAktivasi($request)->getData()['datafungsiAktivasi'];
+        $hDagger = $this->moorePenroseInverse($request)->getData()['hDagger'];
+        $hasilKali = $this->moorePenroseInverse($request)->getData()['hasilKali'];
+        $matriksTranspose = $this->moorePenroseInverse($request)->getData()['matriksTranspose'];
+        $inverseMatriks = $this->moorePenroseInverse($request)->getData()['inverseMatriks'];
+        $outputWeight = $this->outputWeight($request)->getData()['outputWeight'];
+        return view('admin.elm.training', compact(
+            'bobotMatrix',
+            'bobotBias',
+            'transposedMatrix',
+            'matriksHasil',
+            'datafungsiAktivasi',
+            'hDagger',
+            'outputWeight',
+            'hasilKali',
+            'matriksTranspose',
+            'inverseMatriks'
+        ));
+    }
+    public function testing(Request $request)
+    {
+        $bobotMatrix = $this->parameter($request)->getData()['bobotMatrix'];
+        $transposedMatrix = $this->parameter($request)->getData()['transposedMatrix'];
+        $outputWeight = $this->outputWeight($request)->getData()['outputWeight'];
+        $outputLayer = $this->outputLayer($request)->getData()['outputLayer'];
+        return view('admin.elm.testing', compact(
+            'bobotMatrix',
+            'transposedMatrix',
+            'outputWeight',
+            'outputLayer'
+        ));
     }
 
     public function normalisasi(Request $request)
@@ -161,6 +378,29 @@ class ProduksiController extends Controller
             // Menyimpan hasil normalisasi
             $normalizedData[] = $normalizedItem;
         }
+        // Inisialisasi array untuk menyimpan hasil normalisasi
+        $targetData = [];
+
+        // Normalisasi setiap fitur dalam setiap data alternatif
+        foreach ($data as $item) {
+            $targetItem = [
+                'C5' => ($item->C5 - $minC5) / ($maxC5 - $minC5),
+            ];
+
+            // Menyimpan hasil target
+            $targetData[] = $targetItem;
+        }
+        // Inisialisasi array untuk menyimpan hasil normalisasi
+        $aktualData = [];
+
+        // Normalisasi setiap fitur dalam setiap data alternatif
+        foreach ($data as $item) {
+            $aktualItem = [
+                'C5' => ($item->C5),
+            ];
+            // Menyimpan hasil target
+            $aktualData[] = $aktualItem;
+        }
         return view('admin.elm.normalisasi', compact(
             'data',
             'C1min',
@@ -174,54 +414,10 @@ class ProduksiController extends Controller
             'C5min',
             'C5max',
             'normalisasiData',
-            'normalizedData'
+            'normalizedData',
+            'targetData',
+            'aktualData'
         ));
-    }
-
-    public function bobotMatriks(Request $request)
-    {
-        // Periksa apakah ada input
-        $input = $request->input('input');
-
-        // Jika ada input, lakukan pembuatan data baru dan simpan ke dalam tabel bobot
-        if ($input !== null && $input !== false) {
-            $columnCount = count(alternatif::first()->getFillable()) - 1;
-
-            // Menghitung bobot input
-            $bobotMatrix = [];
-            for ($i = 0; $i < $input; $i++) {
-                $row = [];
-                for ($j = 0; $j < $columnCount; $j++) {
-                    $row[] = mt_rand(0, 100) / 100;
-                }
-                $bobotMatrix[] = $row;
-            }
-
-            // Simpan matriks bobot ke dalam database
-            $bobot = new Bobot();
-            $bobot->matrix = $bobotMatrix;
-            $bobot->save();
-
-            // Menghitung transpose bobot input
-            $transposedMatrix = $this->transposeMatrix($bobotMatrix);
-        } else {
-            // Jika tidak ada input, ambil data terakhir dari tabel bobot
-            $latestBobot = Bobot::latest()->first();
-
-            if ($latestBobot) {
-                // Ambil matriks bobot dari data terakhir dalam tabel bobot
-                $bobotMatrix = $latestBobot->matrix;
-                // Menghitung transpose bobot input
-                $transposedMatrix = $this->transposeMatrix($bobotMatrix);
-            } else {
-                // Jika tidak ada data bobot tersimpan, beri nilai default pada kedua matriks
-                $bobotMatrix = [];
-                $transposedMatrix = [];
-            }
-        }
-
-        // Load view dan kirimkan data bobot ke view
-        return view('admin.elm.bobot', compact('bobotMatrix', 'transposedMatrix'));
     }
 
     private function transposeMatrix($matrix)
@@ -235,45 +431,13 @@ class ProduksiController extends Controller
         return $transposedMatrix;
     }
 
-    public function splitDataAndView(Request $request)
+    private function storeTargetData($targetData)
     {
-        // Lakukan normalisasi pada data
-        $normalisasiData = $this->normalisasi($request)->getData()['normalisasiData'];
+        // Hapus kunci kolom dari setiap array
+        $targetDataWithoutKeys = array_map('array_values', $targetData);
 
-        // Melakukan pembagian data training dan testing
-        $totalData = count($normalisasiData);
-        $trainingPercentage = $request->input('training_percentage');
-
-        if ($trainingPercentage !== null && $trainingPercentage !== false) {
-            // Jika ada input, lakukan pembagian data training dan testing
-            $trainingCount = (int) ($totalData * $trainingPercentage);
-            $testingCount = $totalData - $trainingCount;
-
-            // Pisahkan data menjadi data training dan data testing
-            $trainingData = array_slice($normalisasiData, 0, $trainingCount);
-            $testingData = array_slice($normalisasiData, $trainingCount);
-
-            // Simpan data training dan data testing ke dalam database
-            $this->storeTrainingData($trainingData);
-            $this->storeTestingData($testingData);
-        } else {
-            // Jika tidak ada input, ambil data terakhir dari tabel training dan testing
-            $latestTraining = TrainingData::latest()->first();
-            $latestTesting = TestingData::latest()->first();
-
-            if ($latestTraining && $latestTesting) {
-                // Ambil data training dan testing dari database
-                $trainingData = json_decode($latestTraining->data, true);
-                $testingData = json_decode($latestTesting->data, true);
-            } else {
-                // Jika tidak ada data training dan testing tersimpan, inisialisasi dengan array kosong
-                $trainingData = [];
-                $testingData = [];
-            }
-        }
-
-        // Mengirim data training dan testing ke view
-        return view('admin.elm.split_data', compact('trainingData', 'testingData'));
+        // Simpan data training ke dalam tabel data_target
+        TargetData::create(['data' => json_encode($targetDataWithoutKeys)]);
     }
 
     private function storeTrainingData($trainingData)
@@ -293,134 +457,318 @@ class ProduksiController extends Controller
         // Simpan data testing ke dalam tabel data_testing
         TestingData::create(['data' => json_encode($testingDataWithoutKeys)]);
     }
+    private function storeAktualData($aktualData)
+    {
+        // Hapus kunci kolom dari setiap array
+        $aktualWithoutKeys = array_map('array_values', $aktualData);
+
+        // Simpan data training ke dalam tabel data_target
+        AktualData::create(['data' => json_encode($aktualWithoutKeys)]);
+    }
 
     public function perkalian_matriks(Request $request)
     {
-
-        $matriksA = $this->splitDataAndView($request)->getData()['trainingData'];
-
-        // Matriks B
-        $matriksB = $this->bobotMatriks($request)->getData()['transposedMatrix'];
-
+        $matriksA = $this->parameter($request)->getData()['trainingData'];
+        $matriksB = $this->parameter($request)->getData()['transposedMatrix'];
+        $matriksC = $this->parameter($request)->getData()['bobotBias'];
         // Inisialisasi matriks hasil
-        $hasilMatriks = [];
+        $matriksHasil = [];
 
         // Perkalian matriks
-        for ($i = 0; $i < count($matriksA); $i++) {
-            for ($j = 0; $j < count($matriksB[0]); $j++) {
-                $hasil = 0;
-                for ($k = 0; $k < count($matriksA[0]); $k++) {
-                    $hasil += $matriksA[$i][$k] * $matriksB[$k][$j];
+        if (!empty($matriksA)) {
+            for ($i = 0; $i < count($matriksA); $i++) {
+                for ($j = 0; $j < count($matriksB[0]); $j++) {
+                    $hasil = 0;
+                    for ($k = 0; $k < count($matriksA[0]); $k++) {
+                        $hasil += $matriksA[$i][$k] * $matriksB[$k][$j];
+                    }
+                    $hasil += $matriksC[$j];
+                    $matriksHasil[$i][$j] = $hasil;
                 }
-                $hasilMatriks[$i][$j] = $hasil;
             }
+        } else {
+            $matriksHasil = [];
         }
         // Output hasil matriks
-        return view('admin.elm.perkalianMatriks', compact('hasilMatriks'));
+        return view('admin.elm.perkalianMatriks', compact('matriksHasil'));
     }
+
     public function fungsiAktivasi(Request $request)
     {
-        $data = $this->perkalian_matriks($request)->getData()['hasilMatriks'];
-        for ($i = 0; $i < sizeof($data); $i++) {
-            for ($j = 0; $j < sizeof($data[0]); $j++) {
-                $datafungsiAktivasi[$i][$j] = round(1 / (1 + exp(-$data[$i][$j])), 6);
+        $data = $this->perkalian_matriks($request)->getData()['matriksHasil'];
+        if (!empty($data)) {
+            for ($i = 0; $i < sizeof($data); $i++) {
+                for ($j = 0; $j < sizeof($data[0]); $j++) {
+                    $datafungsiAktivasi[$i][$j] = (1 / (1 + exp(-$data[$i][$j])));
+                }
             }
+        } else {
+            $datafungsiAktivasi = [];
         }
         return view('admin.elm.fungsiAktivasi', compact('datafungsiAktivasi'));
     }
+
     public function moorePenroseInverse(Request $request)
     {
         $data = $this->fungsiAktivasi($request)->getData()['datafungsiAktivasi'];
-        // Mendapatkan jumlah baris dan kolom
-        $rowCount = count($data);
-        $columnCount = count($data[0]);
-
         // Membuat matriks transpos
-        $transposedMatrix = [];
-        for ($i = 0; $i < $columnCount; $i++) {
-            $row = [];
-            for ($j = 0; $j < $rowCount; $j++) {
-                $row[] = $data[$j][$i];
+        $matriksTranspose = [];
+        if (!empty($data)) {
+            // Mendapatkan jumlah baris dan kolom
+            $columnCount = count($data[0]);
+            $matriksTranspose = $this->transposeMatrix($data);
+            // Inisialisasi matriks hasil
+            $hasilKali = [];
+            for ($i = 0; $i < $columnCount; $i++) {
+                for ($j = 0; $j < $columnCount; $j++) {
+                    $perkalian = 0;
+                    for ($k = 0; $k < count($matriksTranspose); $k++) {
+                        $perkalian += $matriksTranspose[$k][$i] * $matriksTranspose[$k][$j];
+                    }
+                    $hasilKali[$i][$j] = $perkalian; // round to 3 decimal places
+                }
             }
-            $transposedMatrix[] = $row;
+            // Calculate the inverse
+            $inverseMatriks = [];
+            $inverseMatriks = $this->inverseMatrix($hasilKali);
+            $hDagger = [];
+
+            // Matrix multiplication
+            for ($i = 0; $i < count($inverseMatriks); $i++) {
+                for ($j = 0; $j < count($matriksTranspose[0]); $j++) {
+                    $sum = 0;
+                    for ($k = 0; $k < count($inverseMatriks[0]); $k++) {
+                        $sum += $inverseMatriks[$i][$k] * $matriksTranspose[$k][$j];
+                    }
+                    $hDagger[$i][$j] = $sum;
+                }
+            }
+        } else {
+            $matriksTranspose = [];
+            $hasilKali = [];
+            $inverseMatriks = [];
+            $hDagger = [];
         }
+        //return response()->json(['det' => $hasilKali]);
+        return view('admin.elm.moorePenrose', compact('hDagger', 'inverseMatriks', 'matriksTranspose', 'hasilKali'));
+    }
+
+    // Function to calculate the inverse of a matrix
+    public function inverseMatrix(array $hasilKali)
+    {
+        $size = count($hasilKali);
+
+        // Initialize the identity hasilKali
+        $identityMatrix = [];
+        for ($i = 0; $i < $size; $i++) {
+            for ($j = 0; $j < $size; $j++) {
+                $identityMatrix[$i][$j] = ($i == $j) ? 1 : 0;
+            }
+        }
+
+        // Perform Gauss-Jordan elimination
+        for ($i = 0; $i < $size; $i++) {
+            // Find pivot row
+            $pivotRow = $i;
+            for ($j = $i + 1; $j < $size; $j++) {
+                if (abs($hasilKali[$j][$i]) > abs($hasilKali[$pivotRow][$i])) {
+                    $pivotRow = $j;
+                }
+            }
+            // Swap rows if needed
+            if ($pivotRow != $i) {
+                list($hasilKali[$i], $hasilKali[$pivotRow]) = array($hasilKali[$pivotRow], $hasilKali[$i]);
+                list($identityMatrix[$i], $identityMatrix[$pivotRow]) = array($identityMatrix[$pivotRow], $identityMatrix[$i]);
+            }
+            // Perform row operations to make the diagonal elements 1
+            $pivot = $hasilKali[$i][$i];
+            for ($j = 0; $j < $size; $j++) {
+                $hasilKali[$i][$j] /= $pivot;
+                $identityMatrix[$i][$j] /= $pivot;
+            }
+            // Perform row operations to make the other elements in the column 0
+            for ($j = 0; $j < $size; $j++) {
+                if ($j != $i) {
+                    $factor = $hasilKali[$j][$i];
+                    for ($k = 0; $k < $size; $k++) {
+                        $hasilKali[$j][$k] -= $factor * $hasilKali[$i][$k];
+                        $identityMatrix[$j][$k] -= $factor * $identityMatrix[$i][$k];
+                    }
+                }
+            }
+        }
+        return $identityMatrix;
+    }
+
+    public function outputWeight(Request $request)
+    {
+        // Get the results from the normalisasi and moorePenroseInverse functions
+        $matriksA = $this->moorePenroseInverse($request)->getData()['hDagger'];
+
+        // Matriks B
+        $matriksB = $this->parameter($request)->getData()['targetData'];
 
         // Inisialisasi matriks hasil
-        $hasilMatriks = [];
+        $outputWeight = [];
 
         // Perkalian matriks
-        for ($i = 0; $i < count($data); $i++) {
-            for ($j = 0; $j < count($transposedMatrix[0]); $j++) {
-                $hasil = 0;
-                for ($k = 0; $k < count($data[0]); $k++) {
-                    $hasil += $data[$i][$k] * $transposedMatrix[$k][$j];
+        if (!empty($matriksA)) {
+            for ($i = 0; $i < count($matriksA); $i++) {
+                for ($j = 0; $j < count($matriksB[0]); $j++) {
+                    $hasil = 0;
+                    for ($k = 0; $k < count($matriksA[0]); $k++) {
+                        $hasil += $matriksA[$i][$k] * $matriksB[$k][$j];
+                    }
+                    $outputWeight[$i][$j] = $hasil;
                 }
-                $hasilMatriks[$i][$j] = $hasil;
             }
+        } else {
+            $outputWeight = [];
         }
-        // $inverseMatrix = $this->inverseMatrix($hasilMatriks);
+        return view('admin.elm.outputWeight', compact('outputWeight'));
+    }
+    public function outputLayer(Request $request)
+    {
 
-        return view('admin.elm.moorePenrose', compact('hasilMatriks'));
+        $matriksA = $this->parameter($request)->getData()['testingData'];
+
+        // Matriks B
+        $matriksB = $this->parameter($request)->getData()['transposedMatrix'];
+
+        //Matriks Output Weight
+        $matriksO = $this->outputWeight($request)->getData()['outputWeight'];
+
+        $matriksC = $this->parameter($request)->getData()['bobotBias'];
+        // Inisialisasi matriks hasil
+        $hasilMatriks = [];
+        if (!empty($matriksA)) { // Perkalian matriks output hidden layer
+            for ($i = 0; $i < count($matriksA); $i++) {
+                for ($j = 0; $j < count($matriksB[0]); $j++) {
+                    $hasil = 0;
+                    for ($k = 0; $k < count($matriksA[0]); $k++) {
+                        $hasil += $matriksA[$i][$k] * $matriksB[$k][$j];
+                    }
+                    $hasil += $matriksC[$j];
+                    $hasilMatriks[$i][$j] = $hasil;
+                }
+            }
+            // fungsi aktivasi
+            for ($i = 0; $i < sizeof($hasilMatriks); $i++) {
+                for ($j = 0; $j < sizeof($hasilMatriks[0]); $j++) {
+                    $datafungsiAktivasi[$i][$j] = (1 / (1 + exp(-$hasilMatriks[$i][$j])));
+                }
+            }
+            // Perkalian matriks
+            for ($i = 0; $i < count($datafungsiAktivasi); $i++) {
+                for ($j = 0; $j < count($matriksO[0]); $j++) {
+                    $hasil = 0;
+                    for ($k = 0; $k < count($datafungsiAktivasi[0]); $k++) {
+                        $hasil += $datafungsiAktivasi[$i][$k] * $matriksO[$k][$j];
+                    }
+                    $outputLayer[$i][$j] = ($hasil);
+                }
+            }
+        } else {
+            $outputLayer = [];
+        }
+
+        //return json_encode($outputLayer);
+        return view('admin.elm.outputLayer', compact('outputLayer'));
     }
 
-
-    private function determinant($hasilMatriks)
+    public function predict(Request $request)
     {
-        $n = count($hasilMatriks);
+        $data = Predict::orderBy('id', 'asc')->get()->map(function ($item) {
+            return [$item->C1, $item->C2, $item->C3, $item->C4];
+        });
+        // Matriks B
+        $matriksB = $this->parameter($request)->getData()['transposedMatrix'];
 
-        if ($n == 1) {
-            return $hasilMatriks[0][0];
+        //Matriks Output Weight
+        $matriksO = $this->outputWeight($request)->getData()['outputWeight'];
+
+        $matriksC = $this->parameter($request)->getData()['bobotBias'];
+        // Inisialisasi matriks hasil
+        $hasilMatriks = [];
+        $datafungsiAktivasi = [];
+        $prediksi = [];
+        // Perkalian matriks output hidden layer
+        if (!empty($data)) { // Periksa apakah data tidak kosong
+            for ($i = 0; $i < count($data); $i++) {
+                for ($j = 0; $j < count($matriksB[0]); $j++) {
+                    $hasil = 0;
+                    for ($k = 0; $k < count($data[0]); $k++) {
+                        $hasil += $data[$i][$k] * $matriksB[$k][$j];
+                    }
+                    $hasil += $matriksC[$j];
+                    $hasilMatriks[$i][$j] = $hasil;
+                }
+            }
+
+            // fungsi aktivasi
+            for ($i = 0; $i < sizeof($hasilMatriks); $i++) {
+                for ($j = 0; $j < sizeof($hasilMatriks[0]); $j++) {
+                    $datafungsiAktivasi[$i][$j] = (1 / (1 + exp(-$hasilMatriks[$i][$j])));
+                }
+            }
+
+            // Perkalian matriks
+            for ($i = 0; $i < count($datafungsiAktivasi); $i++) {
+                for ($j = 0; $j < count($matriksO[0]); $j++) {
+                    $hasil = 0;
+                    for ($k = 0; $k < count($datafungsiAktivasi[0]); $k++) {
+                        $hasil += $datafungsiAktivasi[$i][$k] * $matriksO[$k][$j];
+                    }
+                    $prediksi[$i][$j] = $hasil;
+                }
+            }
+        } else {
+            // Jika data kosong, atur prediksi menjadi kosong atau tidak ada data
+            $prediksi = [];
         }
-
-        $det = 0;
-        $sign = 1;
-
-        for ($i = 0; $i < $n; $i++) {
-            $minor = $this->getMinorMatrix($hasilMatriks, 0, $i);
-            $det += $sign * $hasilMatriks[0][$i] * $this->determinant($minor);
-            $sign = -$sign;
-        }
-
-        return $det;
+        return view('admin.elm.predict', compact('data', 'prediksi'));
     }
 
-    private function inverseMatrix($matrix)
+    public function denormalisasi(Request $request)
     {
-        $determinant = $this->determinant($matrix);
+        $matriksO = $this->outputLayer($request)->getData()['outputLayer'];
+        $aktual = $this->parameter($request)->getData()['aktualData'];
+        $minC5 = alternatif::min('C5');
+        $maxC5 = alternatif::max('C5');
 
-        if ($determinant == 0) {
-            throw new Exception("Matriks tidak memiliki invers karena determinan nol.");
-        }
-
-        $n = count($matrix);
-        $inverseMatrix = [];
-
-        for ($i = 0; $i < $n; $i++) {
-            for ($j = 0; $j < $n; $j++) {
-                $minor = $this->getMinorMatrix($matrix, $i, $j);
-                $cofactor = pow(-1, $i + $j) * $this->determinant($minor);
-                $inverseMatrix[$j][$i] = $cofactor / $determinant;
+        if (!empty($matriksO)) {
+            for ($i = 0; $i < sizeof($matriksO); $i++) {
+                for ($j = 0; $j < sizeof($matriksO[0]); $j++) {
+                    $denormalisasi[$i][$j] = (((($matriksO[$i][$j]) * ($maxC5 - $minC5)) + $minC5));
+                }
             }
+        } else {
+            $denormalisasi = [];
         }
-
-        return $inverseMatrix;
+        return view('admin.elm.denormalisasi', compact('denormalisasi', 'aktual'));
     }
 
-    private function getMinorMatrix($matrix, $row, $col)
+    public function mape(Request $request)
     {
-        $minor = [];
-        $n = count($matrix);
+        $matriksA = $this->parameter($request)->getData()['aktualData'];
+        $matriksB = $this->denormalisasi($request)->getData()['denormalisasi'];
+        // Menghitung MAPE
+        $error_sum = 0;
 
-        for ($i = 0; $i < $n; $i++) {
-            if ($i == $row) continue;
-            $temp = [];
-            for ($j = 0; $j < $n; $j++) {
-                if ($j == $col) continue;
-                $temp[] = $matrix[$i][$j];
+        if (!empty($matriksA && $matriksB)) {
+            for ($i = 0; $i < count($matriksA); $i++) {
+                for ($j = 0; $j < count($matriksA[$i]); $j++) {
+                    $error_sum += abs(($matriksA[$i][$j] - $matriksB[$i][$j]) / $matriksA[$i][$j]);
+                }
             }
-            $minor[] = $temp;
+
+            $mape = ($error_sum / count($matriksA)) * 100;
+        } else {
+            $mape = 0;
+            $matriksA = [];
+            $matriksB = [];
         }
 
-        return $minor;
+        return view('admin.elm.mape', compact('mape', 'matriksA', 'matriksB'));
     }
 }

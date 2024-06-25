@@ -109,6 +109,10 @@
                 </tbody>
             </table>
         </div>
+        <div class="col-md-40 col-sm-12 text-center">
+            <br>
+            {{$mapel->links()}}
+        </div>
     </div>
 </div>
 @endsection

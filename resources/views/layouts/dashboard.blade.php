@@ -40,7 +40,7 @@
                 <div class="sidebar-brand-icon rotate-n-15">
                     <i class="fas fa-book-reader"></i>
                 </div>
-                <div class="sidebar-brand-text mx-3">SPK<sup>Dosen</sup></div>
+                <div class="sidebar-brand-text mx-3">PG<sup>Glenmore</sup></div>
             </a>
 
             <!-- Divider -->
@@ -48,8 +48,7 @@
 
             <!-- Nav Item - Dashboard -->
             <li class="nav-item">
-                <!-- <a class="nav-link" href="{{ route('home') }}"> -->
-                <a class="nav-link" href="{{ route('moorePenroseInverse') }}">
+                <a class="nav-link" href="{{ route('index') }}">
                     <i class="far fa-chart-bar"></i>
                     <span>Dashboard</span></a>
             </li>
@@ -71,7 +70,12 @@
 
             <!-- Nav Item - Pages Collapse Menu -->
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('bobotMatriks') }}">
+                <a class="nav-link" href="{{ route('parameter') }}">
+                    <i class="fas fa-tasks"></i>
+                    <span>Data Bobot</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('predict') }}">
                     <i class="fas fa-tasks"></i>
                     <span>Data Prediksi</span></a>
             </li>
@@ -97,22 +101,22 @@
                     <span>Normalisasi</span></a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('splitDataAndView') }}">
+                <a class="nav-link" href="{{ route('training') }}">
                     <i class="fas fa-th-list"></i>
                     <span>Training</span></a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ route('perkalian_matriks') }}">
+                <a class="nav-link" href="{{ route('testing') }}">
                     <i class="fas fa-list-alt"></i>
                     <span>Testing</span></a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link" href="{{ route('denormalisasi') }}">
                     <i class="fas fa-list"></i>
                     <span>Denormalisasi</span></a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link" href="{{ route('mape') }}">
                     <i class="fas fa-bars"></i>
                     <span>Evaluasi</span></a>
             </li>

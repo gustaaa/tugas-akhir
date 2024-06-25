@@ -8,20 +8,20 @@
         <table class="table table-bordered" id="" width="100%" cellspacing="0">
             <thead>
                 <tr>
-                    <th style="color: navy;">C1</th>
-                    <th style="color: navy;">C2</th>
-                    <th style="color: navy;">C3</th>
-                    <th style="color: navy;">C4</th>
-                    <th style="color: navy;">C5</th>
+                    <th style="color: navy;">X1</th>
+                    <th style="color: navy;">X2</th>
+                    <th style="color: navy;">X3</th>
+                    <th style="color: navy;">X4</th>
+                    <th style="color: navy;">T</th>
                 </tr>
             </thead>
             <tbody>
             <tbody>
-                <td>{{ number_format($C1max['mapel'], 1) }}</td>
-                <td>{{ number_format($C2max['mapel'], 1) }}</td>
-                <td>{{ number_format($C3max['mapel'], 1) }}</td>
-                <td>{{ number_format($C4max['mapel'], 1) }}</td>
-                <td>{{ number_format($C5max['mapel'], 1) }}</td>
+                <td>{{ number_format($C1max['mapel'],3 )}}</td>
+                <td>{{ number_format($C2max['mapel'],3 )}}</td>
+                <td>{{ number_format($C3max['mapel'],3 ) }}</td>
+                <td>{{ number_format($C4max['mapel'],3 ) }}</td>
+                <td>{{ number_format($C5max['mapel'],3 ) }}</td>
                 </tr>
             </tbody>
             </tbody>
@@ -36,22 +36,18 @@
         <table class="table table-bordered" id="" width="100%" cellspacing="0">
             <thead>
                 <tr>
-                    <th style="color: navy;">C1</th>
-                    <th style="color: navy;">C2</th>
-                    <th style="color: navy;">C3</th>
-                    <th style="color: navy;">C4</th>
-                    <th style="color: navy;">C5</th>
-                </tr>
+                    <th style="color: navy;">X1</th>
+                    <th style="color: navy;">X2</th>
+                    <th style="color: navy;">X3</th>
+                    <th style="color: navy;">X4</th>
+                    <th style="color: navy;">T</th>
             </thead>
             <tbody>
-            <tbody>
-                <td>{{ number_format($C1min['mapel'], 1) }}</td>
-                <td>{{ number_format($C2min['mapel'], 1) }}</td>
-                <td>{{ number_format($C3min['mapel'], 1) }}</td>
-                <td>{{ number_format($C4min['mapel'], 1) }}</td>
-                <td>{{ number_format($C5min['mapel'], 1) }}</td>
-                </tr>
-            </tbody>
+                <td>{{ number_format($C1min['mapel'],3 )}}</td>
+                <td>{{ number_format($C2min['mapel'],3 )}}</td>
+                <td>{{ number_format($C3min['mapel'],3 ) }}</td>
+                <td>{{ number_format($C4min['mapel'],3 ) }}</td>
+                <td>{{ number_format($C5min['mapel'],3 ) }}</td>
             </tbody>
         </table>
     </div>
@@ -65,11 +61,11 @@
             <thead>
                 <tr>
                     <th style="color: navy;">No</th>
-                    <th style="color: navy;">C1</th>
-                    <th style="color: navy;">C2</th>
-                    <th style="color: navy;">C3</th>
-                    <th style="color: navy;">C4</th>
-                    <th style="color: navy;">C5</th>
+                    <th style="color: navy;">X1</th>
+                    <th style="color: navy;">X2</th>
+                    <th style="color: navy;">X3</th>
+                    <th style="color: navy;">X4</th>
+                    <th style="color: navy;">T</th>
                 </tr>
             </thead>
             <tbody>

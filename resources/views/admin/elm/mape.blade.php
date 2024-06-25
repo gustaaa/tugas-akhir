@@ -1,23 +1,16 @@
 @extends('layouts.dashboard')
 @section('content')
-<!-- DataTales Example -->
 <div class="card shadow mb-4">
     <div class="card-header py-3">
-        <h5 class="m-0 font-weight-bold text-primary">Dashboard</h5>
+        <h5 class="m-0 font-weight-bold text-primary">MAPE</h5>
     </div>
     <div class="card-body">
-        <table class="table table-bordered sortable" id="" width="100%" cellspacing="0">
-            <thead>
-                <tr>
-                    <th>Tebu Masuk</th>
-                    <th>Luas Areal</th>
-                    <th>Produksi Gula</th>
-                </tr>
-            </thead>
+
+        <table class="table table-bordered" id="" width="100%" cellspacing="0">
             <tbody>
-                <td>{{ number_format($total_c1,3 )}}</td>
-                <td>{{ number_format($total_c3,3 )}}</td>
-                <td>{{ number_format($total_c5,3 ) }}</td>
+                <tr>
+                    <td>{{ number_format($mape ,2) }} %</td>
+                </tr>
             </tbody>
         </table>
         <div class="section-header d-flex">
@@ -32,7 +25,7 @@
                     var denormalisasi = <?php echo json_encode($matriksB) ?>;
                     Highcharts.chart('barChart', {
                         chart: {
-                            type: 'column'
+                            type: 'line'
                         },
                         title: {
                             text: 'Grafik Hasil Prediksi dan Data Aktual'

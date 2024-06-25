@@ -1,28 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hasil Fungsi Aktivasi</title>
-</head>
-
-<body>
-    <h1>Hasil Fungsi Aktivasi</h1>
-
-    @if(is_string($datafungsiAktivasi))
-    <p>{{ $datafungsiAktivasi }}</p>
-    @else
-    <table border="1">
-        @foreach ($datafungsiAktivasi as $baris)
-        <tr>
-            @foreach ($baris as $nilai)
-            <td>{{ $nilai }}</td>
-            @endforeach
-        </tr>
-        @endforeach
-    </table>
-    @endif
-</body>
-
-</html>
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h5 class="m-0 font-weight-bold text-primary">Fungsi Aktivasi Sigmoid Biner</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered" id="" width="100%" cellspacing="0">
+            <tbody>
+                @foreach ($datafungsiAktivasi as $baris)
+                <tr>
+                    @foreach ($baris as $nilai)
+                    <td>{{ number_format($nilai,3) }}</td>
+                    @endforeach
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>

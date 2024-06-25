@@ -48,6 +48,7 @@ class AlternatifController extends Controller
         //
 
         $mapel = alternatif::orderby('created_at', 'desc')->get();
+        $mapel = alternatif::simplePaginate(10);
         return view('admin.produksi.index', compact('mapel'));
     }
     public function export()

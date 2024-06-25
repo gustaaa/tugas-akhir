@@ -17,12 +17,12 @@ use App\Http\Controllers\AlternatifController;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('auth/login');
 });
 
 Auth::routes();
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/home', [App\Http\Controllers\ProduksiController::class, 'index'])->name('index');
 Route::resource('user', UserController::class);
 Route::get('/laporan/user', [UserController::class, 'laporan']);
 Route::post('/data-import', [UserController::class, 'import'])->name('user.import');
@@ -33,14 +33,23 @@ Route::post('/data-import', [AlternatifController::class, 'import']);
 Route::get('export', [AlternatifController::class, 'export'])->name('produksi.export');
 Route::post('/produksi/clear', [AlternatifController::class, 'clear'])->name('produksi.clear');
 
+route::resource('prediksi', ProduksiController::class);
+
+Route::get('coba', [ProduksiController::class, 'moorePenroseInverse'])->name('coba');
+Route::get('test', [ProduksiController::class, 'calculateDeterminant'])->name('test');
 route::get('normalisasi', [ProduksiController::class, 'normalisasi'])->name('normalisasi');
-Route::post('/bobot', [ProduksiController::class, 'bobotMatriks'])->name('bobotMatriks');
-route::get('/bobot', [ProduksiController::class, 'bobotMatriks'])->name('bobotMatriks');
-Route::post('/data', [ProduksiController::class, 'splitDataAndView'])->name('splitDataAndView');
-route::get('/data', [ProduksiController::class, 'splitDataAndView'])->name('splitDataAndView');
+Route::post('/bobot', [ProduksiController::class, 'parameter'])->name('parameter');
+route::get('/bobot', [ProduksiController::class, 'parameter'])->name('parameter');
+Route::post('/predict', [ProduksiController::class, 'predict'])->name('predict');
+route::get('/predict', [ProduksiController::class, 'predict'])->name('predict');
 Route::post('/perkalian', [ProduksiController::class, 'perkalian_matriks'])->name('perkalian_matriks');
 route::get('/perkalian', [ProduksiController::class, 'perkalian_matriks'])->name('perkalian_matriks');
-Route::post('/fungsi', [ProduksiController::class, 'fungsiAktivasi'])->name('fungsiAktivasi');
-route::get('/fungsi', [ProduksiController::class, 'fungsiAktivasi'])->name('fungsiAktivasi');
-Route::post('/moore', [ProduksiController::class, 'moorePenroseInverse'])->name('moorePenroseInverse');
-route::get('/moore', [ProduksiController::class, 'moorePenroseInverse'])->name('moorePenroseInverse');
+Route::post('/evaluasi', [ProduksiController::class, 'mape'])->name('mape');
+route::get('/evaluasi', [ProduksiController::class, 'mape'])->name('mape');
+Route::post('/denormalisasi', [ProduksiController::class, 'denormalisasi'])->name('denormalisasi');
+route::get('/denormalisasi', [ProduksiController::class, 'denormalisasi'])->name('denormalisasi');
+
+Route::post('/data-training', [ProduksiController::class, 'training'])->name('training');
+route::get('/data-training', [ProduksiController::class, 'training'])->name('training');
+Route::post('/data-testing', [ProduksiController::class, 'testing'])->name('testing');
+route::get('/data-testing', [ProduksiController::class, 'testing'])->name('testing');
